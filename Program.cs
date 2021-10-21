@@ -30,6 +30,7 @@ namespace SpreadSheetTool
 			{
 				Logger.Error(ex.Message);
 			}
+			Console.ReadKey();
 		}
 	}
 }
