@@ -41,9 +41,6 @@ namespace SpreadSheetTool.Models
 		}
 		public void Run()
 		{
-
-			spManager.InsertOrUpdateSource();
-			return;
 			// get current year and last year, like 2021 and 2020
 			string currentYear = GetCurrentYear();
 			string lastYear = GetLastYear();
@@ -77,7 +74,7 @@ namespace SpreadSheetTool.Models
 			UpdateExistingSPRecordsByProgressData(spRecords, toInsert, toUpdate);
 			Logger.Info($"To {year}, size of toInsert is {toInsert.Count()}; sizeof toUpdate is {toUpdate.Count()}");
 			// 2. update the sheet and log the change
-			//spManager.InsertOrUpdateSource(year, toInsert, toUpdate);
+			spManager.InsertOrUpdateSource(year, toInsert.Select(item => item.Value).ToList(), toUpdate);
 		}
 		private Dictionary<string, SharedPointSSRecord> GetInsertSPRecordsFromFTP(List<FTPSSRecord> ftpRecords,
 			Dictionary<string, SharedPointSSRecord> rid2SpRecords)
