@@ -48,7 +48,7 @@ namespace SpreadSheetTool.Models
 			var currentYearFtpRecords = GetFTPRecordsByYear(currentYear, ftpRecords);
 			var lastYearFtpRecords = GetFTPRecordsByYear(lastYear, ftpRecords);
 			InsertOrUpdateSUBLogsByYears(currentYear, currentYearFtpRecords);
-			InsertOrUpdateSUBLogsByYears(lastYear, lastYearFtpRecords);
+			//InsertOrUpdateSUBLogsByYears(lastYear, lastYearFtpRecords);
 		}
 		private void InsertOrUpdateSUBLogsByYears(string year, List<FTPSSRecord> ftpRecords)
 		{
@@ -70,8 +70,11 @@ namespace SpreadSheetTool.Models
 
 			Dictionary<string, SharedPointSSRecord> toUpdate = 
 				GetUpdateSPRecordsByFTP(ftpRecords, rid2SpRecords);
-
+			if (toUpdate.ContainsKey("21-3828"))
+				Logger.Info("insert hereaa");
 			UpdateExistingSPRecordsByProgressData(spRecords, toInsert, toUpdate);
+			if (toUpdate.ContainsKey("21-3828"))
+				Logger.Info("insert here2");
 			Logger.Info($"To {year}, size of toInsert is {toInsert.Count()}; sizeof toUpdate is {toUpdate.Count()}");
 			// 2. update the sheet and log the change
 			spManager.InsertOrUpdateSource(year, toInsert.Select(item => item.Value).ToList(), toUpdate);
@@ -108,24 +111,30 @@ namespace SpreadSheetTool.Models
 				{
 					continue;
 				}
+				if (ftpRecord.RID == "21-3828")
+					Logger.Info("break here");
 				var spRecord = new SharedPointSSRecord(rid2spRecord[ftpRecord.RID]);
 				bool isModify = false;
-				if (string.IsNullOrEmpty(spRecord.DateReced))
+				if (string.IsNullOrWhiteSpace(spRecord.DateReced) 
+					&& !string.IsNullOrWhiteSpace(ftpRecord.DateCTSReceived))
 				{
 					spRecord.DateReced = ftpRecord.DateCTSReceived;
 					isModify = true;
 				}
-				if (string.IsNullOrEmpty(spRecord.FailureMode))
+				if (string.IsNullOrWhiteSpace(spRecord.FailureMode) 
+					&& !string.IsNullOrWhiteSpace(ftpRecord.FailMode))
 				{
 					spRecord.FailureMode = ftpRecord.FailMode;
 					isModify = true;
 				}
-				if (string.IsNullOrEmpty(spRecord.DateRootCauseIdentified))
+				if (string.IsNullOrWhiteSpace(spRecord.DateRootCauseIdentified) 
+					&& !string.IsNullOrWhiteSpace(ftpRecord.DateRootCauseReport))
 				{
 					spRecord.DateRootCauseIdentified = ftpRecord.DateRootCauseReport;
 					isModify = true;
 				}
-				if (string.IsNullOrEmpty(spRecord.CorrectiveAction8D))
+				if (string.IsNullOrWhiteSpace(spRecord.CorrectiveAction8D) 
+					&& !string.IsNullOrWhiteSpace(ftpRecord.ProjectCode))
 				{
 					spRecord.CorrectiveAction8D = ftpRecord.ProjectCode;
 					isModify = true;
@@ -149,9 +158,13 @@ namespace SpreadSheetTool.Models
 				= GetCompositeKeyProgressUpdateMaps(spRecords);
 			// using `Progress object` to update the records in `SPSheet, but not the toInsert records`
 			UpdateSPRecordsByFailureMode(spRecords, toUpdate, failureMode2spRecord);
+			if (toUpdate.ContainsKey("21-3828"))
+				Logger.Info("insert here3");
 
 			UpdateSPRecordsByFailureModeAnd8DCorrectiveAction(spRecords, toUpdate, composite2spRecord);
 			// when insert ,need check the matching record whether is in toUpdate
+			if (toUpdate.ContainsKey("21-3828"))
+				Logger.Info("insert here4");
 		}
 		private Dictionary<string, SharedPointSSCoreRecord>  GetFailureModeProgressUpdateMaps(List<SharedPointSSRecord> spRecords)
 		{
@@ -159,7 +172,7 @@ namespace SpreadSheetTool.Models
 				new Dictionary<string, SharedPointSSCoreRecord>();
 			foreach (var record in spRecords)
 			{
-				if (string.IsNullOrEmpty(record.FailureMode))
+				if (string.IsNullOrWhiteSpace(record.FailureMode))
 					continue;
 				if (!failureMode2spRecord.ContainsKey(record.FailureMode))
 				{
@@ -177,20 +190,20 @@ namespace SpreadSheetTool.Models
 				// existing a record, so merge them if one is null or empty and the other is not
 				var matchRecord = failureMode2spRecord[record.FailureMode];
 				Logger.Info($"record.ProblemClassification: {record.RID}, {record.ProblemClassification}");
-				if (!string.IsNullOrEmpty(record.ProblemClassification) 
+				if (!string.IsNullOrWhiteSpace(record.ProblemClassification) 
 					&& record.ProblemClassification != "-")
 					matchRecord.ProblemClassification = record.ProblemClassification;
-				if (string.IsNullOrEmpty(matchRecord.InterimCorrectiveActionDate)
-					&& !string.IsNullOrEmpty(record.InterimCorrectiveActionDate))
+				if (string.IsNullOrWhiteSpace(matchRecord.InterimCorrectiveActionDate)
+					&& !string.IsNullOrWhiteSpace(record.InterimCorrectiveActionDate))
 					matchRecord.InterimCorrectiveActionDate = record.InterimCorrectiveActionDate;
-				if (string.IsNullOrEmpty(matchRecord.CleanDateFinalCorrectiveActionInPlace)
-					&& !string.IsNullOrEmpty(record.CleanDateFinalCorrectiveActionInPlace))
+				if (string.IsNullOrWhiteSpace(matchRecord.CleanDateFinalCorrectiveActionInPlace)
+					&& !string.IsNullOrWhiteSpace(record.CleanDateFinalCorrectiveActionInPlace))
 					matchRecord.CleanDateFinalCorrectiveActionInPlace = record.CleanDateFinalCorrectiveActionInPlace;
-				if (string.IsNullOrEmpty(matchRecord.FirstSNAndOrDateCode)
-					&& !string.IsNullOrEmpty(record.FirstSNAndOrDateCode))
+				if (string.IsNullOrWhiteSpace(matchRecord.FirstSNAndOrDateCode)
+					&& !string.IsNullOrWhiteSpace(record.FirstSNAndOrDateCode))
 					matchRecord.FirstSNAndOrDateCode = record.FirstSNAndOrDateCode;
-				if (string.IsNullOrEmpty(matchRecord.CorrectiveAction8D)
-					&& !string.IsNullOrEmpty(record.CorrectiveAction8D))
+				if (string.IsNullOrWhiteSpace(matchRecord.CorrectiveAction8D)
+					&& !string.IsNullOrWhiteSpace(record.CorrectiveAction8D))
 					matchRecord.CorrectiveAction8D = record.CorrectiveAction8D;
 			}
 			return failureMode2spRecord;
@@ -201,7 +214,7 @@ namespace SpreadSheetTool.Models
 				= new Dictionary<string, SharedPointSSCoreRecord>();
 			foreach (var record in spRecords)
 			{
-				if(string.IsNullOrEmpty(record.FailureMode) || string.IsNullOrEmpty(record.CorrectiveAction8D))
+				if(string.IsNullOrWhiteSpace(record.FailureMode) || string.IsNullOrWhiteSpace(record.CorrectiveAction8D))
 					continue;
 				var compositekey = GetCompositeKey(record);
 				if (!composite2spRecord.ContainsKey(compositekey))
@@ -219,20 +232,20 @@ namespace SpreadSheetTool.Models
 				}
 				// existing a record, so merge them if one is null or empty and the other is not
 				var matchRecord = composite2spRecord[compositekey];
-				if (string.IsNullOrEmpty(matchRecord.ProblemClassification)
-					&& !string.IsNullOrEmpty(record.ProblemClassification))
+				if (string.IsNullOrWhiteSpace(matchRecord.ProblemClassification)
+					&& !string.IsNullOrWhiteSpace(record.ProblemClassification))
 					matchRecord.ProblemClassification = record.ProblemClassification;
-				if (string.IsNullOrEmpty(matchRecord.InterimCorrectiveActionDate)
-					&& !string.IsNullOrEmpty(record.InterimCorrectiveActionDate))
+				if (string.IsNullOrWhiteSpace(matchRecord.InterimCorrectiveActionDate)
+					&& !string.IsNullOrWhiteSpace(record.InterimCorrectiveActionDate))
 					matchRecord.InterimCorrectiveActionDate = record.InterimCorrectiveActionDate;
-				if (string.IsNullOrEmpty(matchRecord.CleanDateFinalCorrectiveActionInPlace)
-					&& !string.IsNullOrEmpty(record.CleanDateFinalCorrectiveActionInPlace))
+				if (string.IsNullOrWhiteSpace(matchRecord.CleanDateFinalCorrectiveActionInPlace)
+					&& !string.IsNullOrWhiteSpace(record.CleanDateFinalCorrectiveActionInPlace))
 					matchRecord.CleanDateFinalCorrectiveActionInPlace = record.CleanDateFinalCorrectiveActionInPlace;
-				if (string.IsNullOrEmpty(matchRecord.FirstSNAndOrDateCode)
-					&& !string.IsNullOrEmpty(record.FirstSNAndOrDateCode))
+				if (string.IsNullOrWhiteSpace(matchRecord.FirstSNAndOrDateCode)
+					&& !string.IsNullOrWhiteSpace(record.FirstSNAndOrDateCode))
 					matchRecord.FirstSNAndOrDateCode = record.FirstSNAndOrDateCode;
-				if (string.IsNullOrEmpty(matchRecord.CorrectiveAction8D)
-					&& !string.IsNullOrEmpty(record.CorrectiveAction8D))
+				if (string.IsNullOrWhiteSpace(matchRecord.CorrectiveAction8D)
+					&& !string.IsNullOrWhiteSpace(record.CorrectiveAction8D))
 					matchRecord.CorrectiveAction8D = record.CorrectiveAction8D;
 			}
 			return composite2spRecord;
@@ -254,16 +267,23 @@ namespace SpreadSheetTool.Models
 			Logger.Info("UpdateSPRecordsByFailureMode start");
 			foreach (var item in spRecords)
 			{
+				if (item.RID == "21-3828")
+					Logger.Info("insert here key");
 				Logger.Info($"UpdateSPRecordByFailureMode: {item}");
-				if (!string.IsNullOrEmpty(item.ProblemClassification))
+				if (!string.IsNullOrWhiteSpace(item.ProblemClassification))
 				{
 					continue;
 				}
 				SharedPointSSRecord record =
 					toUpdate.GetValueOrDefault(item.RID, new SharedPointSSRecord(item));
-				if (string.IsNullOrEmpty(record.FailureMode) || !failureMode2spRecord.ContainsKey(record.FailureMode))
+				if (string.IsNullOrWhiteSpace(record.FailureMode) || !failureMode2spRecord.ContainsKey(record.FailureMode))
 				{
 					Logger.Info($"Record RID: {record.RID}; Failure Mode: {record.FailureMode} cant find match record in failureMode2spRecord");
+					continue;
+				}
+				if (string.IsNullOrWhiteSpace(failureMode2spRecord[record.FailureMode].ProblemClassification))
+				{
+					Logger.Info($"Record RID: {record.RID}; Failure Mode: {record.FailureMode} match record don't have valid ProblemClassification");
 					continue;
 				}
 				record.ProblemClassification = 
@@ -280,11 +300,18 @@ namespace SpreadSheetTool.Models
 			Logger.Info("UpdateSPRecordsByFailureModeAnd8DCorrectiveAction start");
 			foreach (var item in spRecords)
 			{
+				if (item.RID == "21-3828")
+					Logger.Info("serond key");
 				// foreach only return reference to the value for the reference type
-				if (!string.IsNullOrEmpty(item.InterimCorrectiveActionDate)
-				&& !string.IsNullOrEmpty(item.CleanDateFinalCorrectiveActionInPlace)
-				&& !string.IsNullOrEmpty(item.FirstSNAndOrDateCode))
+				if (!string.IsNullOrWhiteSpace(item.InterimCorrectiveActionDate)
+				&& !string.IsNullOrWhiteSpace(item.CleanDateFinalCorrectiveActionInPlace)
+				&& !string.IsNullOrWhiteSpace(item.FirstSNAndOrDateCode))
 				{
+					continue;
+				}
+				if (string.IsNullOrWhiteSpace(item.FailureMode) && string.IsNullOrWhiteSpace(item.CorrectiveAction8D))
+				{
+					Logger.Info($"Record Rid: {item.RID} have invalid Compoisite key, skip");
 					continue;
 				}
 				string compositeKey = GetCompositeKey(item);
@@ -295,13 +322,28 @@ namespace SpreadSheetTool.Models
 					Logger.Info($"Record RID: {record.RID}; CompositeKey: {compositeKey} cant find match record in Composite2SpRecords");
 					continue;
 				}
-				record.InterimCorrectiveActionDate = 
-					composite2spRecord[compositeKey].InterimCorrectiveActionDate;
-				record.CleanDateFinalCorrectiveActionInPlace = 
-					composite2spRecord[compositeKey].CleanDateFinalCorrectiveActionInPlace;
-				record.FirstSNAndOrDateCode = 
-					composite2spRecord[compositeKey].FirstSNAndOrDateCode;
-				toUpdate[item.RID] = record;
+				bool isModify = false;
+				var compositeRecord = composite2spRecord[compositeKey];
+				if (!string.IsNullOrWhiteSpace(compositeRecord.InterimCorrectiveActionDate)
+					&& record.InterimCorrectiveActionDate != compositeRecord.InterimCorrectiveActionDate)
+				{ 
+					record.InterimCorrectiveActionDate = compositeRecord.InterimCorrectiveActionDate;
+					isModify = true;
+				}
+				if (!string.IsNullOrWhiteSpace(compositeRecord.CleanDateFinalCorrectiveActionInPlace)
+					&& record.CleanDateFinalCorrectiveActionInPlace != compositeRecord.CleanDateFinalCorrectiveActionInPlace)
+				{ 
+					record.CleanDateFinalCorrectiveActionInPlace = compositeRecord.CleanDateFinalCorrectiveActionInPlace;
+					isModify = true;
+				}
+				if (!string.IsNullOrWhiteSpace(compositeRecord.FirstSNAndOrDateCode)
+					&& record.FirstSNAndOrDateCode != compositeRecord.FirstSNAndOrDateCode)
+				{ 
+					record.FirstSNAndOrDateCode = compositeRecord.FirstSNAndOrDateCode;
+					isModify = true;
+				}
+				if(isModify)
+					toUpdate[item.RID] = record;
 			}
 			Logger.Info("UpdateSPRecordsByFailureModeAnd8DCorrectiveAction end");
 		}

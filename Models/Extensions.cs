@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace SpreadSheetTool.Models
 {
-	public static class DictionaryExtension
+	public static class SpreadSheetExtension
 	{
 		public static SharedPointSSRecord GetValueOrDefault(this Dictionary<string, SharedPointSSRecord> container,
 			string key, SharedPointSSRecord default_value)
@@ -14,6 +14,12 @@ namespace SpreadSheetTool.Models
 			if (container.ContainsKey(key))
 				return container[key];
 			return default_value;
+		}
+		public static bool IsNullOrEmptyOrMeaningless(this string message)
+		{
+			if (string.IsNullOrWhiteSpace(message))
+				return true;
+			return message.Trim() == "-";
 		}
 	}
 }

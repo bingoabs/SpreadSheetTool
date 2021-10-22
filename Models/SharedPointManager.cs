@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Configuration;
 
 using System.IO;
 using Npoi.Mapper;
@@ -42,9 +43,10 @@ namespace SpreadSheetTool.Models
 			Dictionary<string, SharedPointSSRecord> toUpdate)
 		{
 			// 设置两个csv路径，分别存储inser记录和update记录
-			string currentPath = Directory.GetCurrentDirectory();
-			string insertFile = $@"{currentPath}\insert_records.cvs";
-			string updateFile = $@"{currentPath}\insert_records.cvs";
+			string currentPath = ConfigurationManager.AppSettings["traceFolder"];
+			var currentDateTime = DateTime.Now.ToString().Replace(":", "_").Replace("-", "_");
+			string insertFile = $@"{currentPath}\{currentDateTime}_insert_records_to_{year}.csv";
+			string updateFile = $@"{currentPath}\{currentDateTime}_update_records_to_{year}.csv";
 			FileStream insertStream = new FileStream(insertFile, FileMode.Create, FileAccess.Write);
 			StreamWriter insertWrite = new StreamWriter(insertStream, Encoding.UTF8);
 			FileStream updateStream = new FileStream(updateFile, FileMode.Create, FileAccess.Write);
@@ -53,9 +55,9 @@ namespace SpreadSheetTool.Models
 			insertWrite.WriteLine("RID，DateReced，PartAnalysisCompletedBy，ProblemClassification，" +
 				"FailureMode，DateRootCauseIdentified，CorrectiveAction8D，InterimCorrectiveActionDate，" +
 				"CleanDateFinalCorrectiveActionInPlace，FirstSNAndOrDateCode");
-			updateWrite.WriteLine("Status, RID，DateReced，PartAnalysisCompletedBy，ProblemClassification，" +
-				"FailureMode，DateRootCauseIdentified，CorrectiveAction8D，InterimCorrectiveActionDate，" +
-				"CleanDateFinalCorrectiveActionInPlace，FirstSNAndOrDateCode");
+			updateWrite.WriteLine("Status, RID, DateReced, PartAnalysisCompletedBy, ProblemClassification, " +
+				"FailureMode, DateRootCauseIdentified, CorrectiveAction8D, InterimCorrectiveActionDate, " +
+				"CleanDateFinalCorrectiveActionInPlace, FirstSNAndOrDateCode");
 			string sheetName = $"{year} Log Sheet";
 			Excel.Application app = new Excel.Application();
 			try {
@@ -67,20 +69,28 @@ namespace SpreadSheetTool.Models
 				for (int rowIdx = 9; rowIdx <= rowCount; ++rowIdx)
 				{
 					var currentRow = sheet.Rows[rowIdx];
-					if (sheet.Rows[rowIdx] == null && insertIdx < toInsert.Count())
+					// invalid row, should not happen
+					if (sheet.Rows[rowIdx] == null)
+						continue;
+
+					if (sheet.Cells[rowIdx, Name2ColumnIndex.RID].Value2 == null && insertIdx < toInsert.Count())
 					{
 						InsertLine(sheet, rowIdx, toInsert[insertIdx++], insertWrite);
-						continue;
 					}
-					if (sheet.Rows[rowIdx] != null
-						&& sheet.Cells[rowIdx, Name2ColumnIndex.RID].Value2 != null
-						&& toUpdate.ContainsKey(sheet.Cells[rowIdx, Name2ColumnIndex.RID].Value2.ToString()))
-						UpdateLine(sheet, rowIdx, 
-							toUpdate[sheet.Cells[rowIdx, Name2ColumnIndex.RID].Value2.ToString()], updateWrite);
+					else if(sheet.Cells[rowIdx, Name2ColumnIndex.RID].Value2 != null)
+					{
+						string rid = sheet.Cells[rowIdx, Name2ColumnIndex.RID].Value2.ToString();
+						if (toUpdate.ContainsKey(rid))
+							UpdateLine(sheet, rowIdx, toUpdate[rid], updateWrite);
+					} 
 				}
 				book.Save();
 				book.Close();
 				app.Quit();
+				updateWrite.Close();
+				insertWrite.Close();
+				insertStream.Close();
+				updateStream.Close();
 			}
 			finally{
 				Process[] localByNames = Process.GetProcessesByName(filepath);
@@ -116,21 +126,89 @@ namespace SpreadSheetTool.Models
 		}
 		private void UpdateLine(Excel.Worksheet sheet, int rowIdx, SharedPointSSRecord record, StreamWriter writer)
 		{
-			writer.WriteLine($"Before, " +
-				$"{ sheet.Cells[rowIdx, Name2ColumnIndex.RID].Value.ToString()}, " +
-				$"{ sheet.Cells[rowIdx, Name2ColumnIndex.DateReced].Value.ToString()}, " +
-				$"{ sheet.Cells[rowIdx, Name2ColumnIndex.PartAnalysisCompletedBy].Value.ToString()}, " +
-				$"{ sheet.Cells[rowIdx, Name2ColumnIndex.ProblemClassification].Value.ToString()}, " +
-				$"{ sheet.Cells[rowIdx, Name2ColumnIndex.FailureMode].Value.ToString()}, " +
-				$"{ sheet.Cells[rowIdx, Name2ColumnIndex.DateRootCauseIdentified].Value.ToString()}, " +
-				$"{ sheet.Cells[rowIdx, Name2ColumnIndex.CorrectiveAction8D].Value.ToString()}, " +
-				$"{ sheet.Cells[rowIdx, Name2ColumnIndex.InterimCorrectiveActionDate].Value.ToString()}, " +
-				$"{ sheet.Cells[rowIdx, Name2ColumnIndex.CleanDateFinalCorrectiveActionInPlace].Value.ToString()}, " +
-				$"{ sheet.Cells[rowIdx, Name2ColumnIndex.FirstSNAndOrDateCode].Value.ToString()}");
-			writer.WriteLine($"After, { record.RID}, { record.DateReced}, { record.PartAnalysisCompletedBy}, " +
-				$"{ record.ProblemClassification}, { record.FailureMode}, { record.DateRootCauseIdentified}, " +
-				$"{ record.CorrectiveAction8D}, { record.InterimCorrectiveActionDate}, " +
-				$"{ record.CleanDateFinalCorrectiveActionInPlace}, { record.FirstSNAndOrDateCode}");
+			string before = "Before, ", after = "After, ";
+			after += record.RID + ", ";
+			if (sheet.Cells[rowIdx, Name2ColumnIndex.RID].Value == null)
+			{
+				before += "null, ";
+			} else 
+			{
+				before += sheet.Cells[rowIdx, Name2ColumnIndex.RID].Value.ToString() + ",";
+			}
+			after += record.DateReced + ", ";
+			if (sheet.Cells[rowIdx, Name2ColumnIndex.DateReced].Value == null)
+			{
+				before += "null, ";
+			} else 
+			{
+				before += sheet.Cells[rowIdx, Name2ColumnIndex.DateReced].Value.ToString() + ", ";
+			}
+			after += record.PartAnalysisCompletedBy + ", ";
+			if (sheet.Cells[rowIdx, Name2ColumnIndex.PartAnalysisCompletedBy].Value == null)
+			{
+				before += "null, ";
+			} else 
+			{
+				before += sheet.Cells[rowIdx, Name2ColumnIndex.PartAnalysisCompletedBy].Value.ToString() + ", ";
+			}
+			after += record.ProblemClassification + ", ";
+			if (sheet.Cells[rowIdx, Name2ColumnIndex.ProblemClassification].Value == null)
+			{
+				before += "null, ";
+			} else 
+			{
+				before += sheet.Cells[rowIdx, Name2ColumnIndex.ProblemClassification].Value.ToString() + ", ";
+			}
+			after += record.FailureMode + ", ";
+			if (sheet.Cells[rowIdx, Name2ColumnIndex.FailureMode].Value == null)
+			{
+				before += "null, ";
+			} else 
+			{
+				before += sheet.Cells[rowIdx, Name2ColumnIndex.FailureMode].Value.ToString() + ", ";
+			}
+			after += record.DateRootCauseIdentified + ", ";
+			if (sheet.Cells[rowIdx, Name2ColumnIndex.DateRootCauseIdentified].Value == null)
+			{
+				before += "null, ";
+			} else 
+			{
+				before += sheet.Cells[rowIdx, Name2ColumnIndex.DateRootCauseIdentified].Value.ToString() + ", ";
+			}
+			after += record.CorrectiveAction8D + ", ";
+			if (sheet.Cells[rowIdx, Name2ColumnIndex.CorrectiveAction8D].Value == null)
+			{
+				before += "null, ";
+			} else 
+			{
+				before += sheet.Cells[rowIdx, Name2ColumnIndex.CorrectiveAction8D].Value.ToString() + ", ";
+			}
+			after += record.InterimCorrectiveActionDate + ", ";
+			if (sheet.Cells[rowIdx, Name2ColumnIndex.InterimCorrectiveActionDate].Value == null)
+			{
+				before += "null, ";
+			} else 
+			{
+				before += sheet.Cells[rowIdx, Name2ColumnIndex.InterimCorrectiveActionDate].Value.ToString() + ", ";
+			}
+			after += record.CleanDateFinalCorrectiveActionInPlace + ", ";
+			if (sheet.Cells[rowIdx, Name2ColumnIndex.CleanDateFinalCorrectiveActionInPlace].Value == null)
+			{
+				before += "null, ";
+			} else 
+			{
+				before += sheet.Cells[rowIdx, Name2ColumnIndex.CleanDateFinalCorrectiveActionInPlace].Value.ToString() + ", ";
+			}
+			after += record.FirstSNAndOrDateCode;
+			if (sheet.Cells[rowIdx, Name2ColumnIndex.FirstSNAndOrDateCode].Value == null)
+			{
+				before += "null";
+			} else 
+			{
+				before += sheet.Cells[rowIdx, Name2ColumnIndex.FirstSNAndOrDateCode].Value.ToString();
+			}
+			writer.WriteLine(before);
+			writer.WriteLine(after);
 			sheet.Cells[rowIdx, Name2ColumnIndex.RID].Value = record.RID;
 			sheet.Cells[rowIdx, Name2ColumnIndex.DateReced].Value = record.DateReced;
 			sheet.Cells[rowIdx, Name2ColumnIndex.PartAnalysisCompletedBy].Value = record.PartAnalysisCompletedBy;

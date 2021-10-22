@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.IO;
+using System.Configuration;
 
 using SpreadSheetTool.Models;
 
@@ -15,9 +16,7 @@ namespace SpreadSheetTool
 			NLog.LogManager.GetCurrentClassLogger();
 		static void Main(string[] args)
 		{
-			// TODO: check the current folders
-			// string currentPath = Directory.GetCUrrentDirectory();
-			string currentPath = @"C:\Users\jzhou2\Desktop\SBULogFiles\Usage";
+			string currentPath = ConfigurationManager.AppSettings["sourceFolder"];
 			FileInfo[] files = new DirectoryInfo(currentPath).GetFiles();
 			FileInfo ftpfile = files.Where(e => e.Name.StartsWith("CTS")).FirstOrDefault();
 			FileInfo spfile = files.Where(e => e.Name.StartsWith("SBU")).FirstOrDefault();
@@ -30,7 +29,6 @@ namespace SpreadSheetTool
 			{
 				Logger.Error(ex.Message);
 			}
-			Console.ReadKey();
 		}
 	}
 }
