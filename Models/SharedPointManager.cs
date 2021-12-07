@@ -44,7 +44,7 @@ namespace SpreadSheetTool.Models
 		{
 			// 设置两个csv路径，分别存储inser记录和update记录
 			string currentPath = ConfigurationManager.AppSettings["traceFolder"];
-			var currentDateTime = DateTime.Now.ToString().Replace(":", "_").Replace("-", "_");
+			var currentDateTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm::ss").Replace(":", "_").Replace("-", "_");
 			string insertFile = $@"{currentPath}\{currentDateTime}_insert_records_to_{year}.csv";
 			string updateFile = $@"{currentPath}\{currentDateTime}_update_records_to_{year}.csv";
 			FileStream insertStream = new FileStream(insertFile, FileMode.Create, FileAccess.Write);

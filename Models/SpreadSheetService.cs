@@ -55,25 +55,40 @@ namespace SpreadSheetTool.Models
 			// 1. Fetch data from source files, and do collection
 			List<SharedPointSSRecord> spRecords = spManager.GetItemsByYear(year);
 			Dictionary<string, FTPSSRecord> rid2ftpRecord;
-			Dictionary<string, SharedPointSSRecord> rid2SpRecords;
+			Dictionary<string, SharedPointSSRecord> rid2SpRecords = new Dictionary<string, SharedPointSSRecord>();
 			try
 			{
 				rid2ftpRecord = ftpRecords.ToDictionary(x => x.RID, x => x);
-				rid2SpRecords = spRecords.ToDictionary(x => x.RID, x => x);
 			}
 			catch (Exception ex){
-				throw new SpreadSheetException($"Please check whether there are duplicate records in source files: {ex.Message}");
+				throw new SpreadSheetException($"Please check whether there are duplicate records in ftp files: {ex.Message}");
 			}
-			
+			try
+			{
+				foreach(var item in spRecords)
+				{
+					if (rid2SpRecords.ContainsKey(item.RID))
+					{ 
+						Logger.Info($"the repeated record rid: {item.RID}");
+					}
+					rid2SpRecords[item.RID] = item;
+				}
+				//rid2SpRecords = spRecords.ToDictionary(x => x.RID, x => x);
+			}
+			catch (Exception ex)
+			{
+				throw new SpreadSheetException($"Please check whether there are duplicate records in sp files: {ex.Message}");
+			}
+
 			Dictionary<string, SharedPointSSRecord> toInsert =
 				GetInsertSPRecordsFromFTP(ftpRecords, rid2SpRecords);
 
 			Dictionary<string, SharedPointSSRecord> toUpdate = 
 				GetUpdateSPRecordsByFTP(ftpRecords, rid2SpRecords);
-			if (toUpdate.ContainsKey("21-3828"))
+			if (toUpdate.ContainsKey("21-0237"))
 				Logger.Info("insert hereaa");
 			UpdateExistingSPRecordsByProgressData(spRecords, toInsert, toUpdate);
-			if (toUpdate.ContainsKey("21-3828"))
+			if (toUpdate.ContainsKey("21-0237"))
 				Logger.Info("insert here2");
 			Logger.Info($"To {year}, size of toInsert is {toInsert.Count()}; sizeof toUpdate is {toUpdate.Count()}");
 			// 2. update the sheet and log the change
@@ -111,7 +126,7 @@ namespace SpreadSheetTool.Models
 				{
 					continue;
 				}
-				if (ftpRecord.RID == "21-3828")
+				if (ftpRecord.RID == "21-0237")
 					Logger.Info("break here");
 				var spRecord = new SharedPointSSRecord(rid2spRecord[ftpRecord.RID]);
 				bool isModify = false;
@@ -158,7 +173,7 @@ namespace SpreadSheetTool.Models
 				= GetCompositeKeyProgressUpdateMaps(spRecords);
 			// using `Progress object` to update the records in `SPSheet, but not the toInsert records`
 			UpdateSPRecordsByFailureMode(spRecords, toUpdate, failureMode2spRecord);
-			if (toUpdate.ContainsKey("21-3828"))
+			if (toUpdate.ContainsKey("21-0237"))
 				Logger.Info("insert here3");
 
 			UpdateSPRecordsByFailureModeAnd8DCorrectiveAction(spRecords, toUpdate, composite2spRecord);
@@ -267,7 +282,7 @@ namespace SpreadSheetTool.Models
 			Logger.Info("UpdateSPRecordsByFailureMode start");
 			foreach (var item in spRecords)
 			{
-				if (item.RID == "21-3828")
+				if (item.RID == "21-0237")
 					Logger.Info("insert here key");
 				Logger.Info($"UpdateSPRecordByFailureMode: {item}");
 				if (!string.IsNullOrWhiteSpace(item.ProblemClassification))
@@ -292,6 +307,12 @@ namespace SpreadSheetTool.Models
 			}
 			Logger.Info("UpdateSPRecordsByFailureMode end");
 		}
+		private bool isInvalidStringContent(string str)
+		{
+			if (string.IsNullOrWhiteSpace(str))
+				return false;
+			return str != "-";
+		}
 		private void UpdateSPRecordsByFailureModeAnd8DCorrectiveAction(
 			List<SharedPointSSRecord> spRecords,
 			Dictionary<string, SharedPointSSRecord> toUpdate,
@@ -300,16 +321,16 @@ namespace SpreadSheetTool.Models
 			Logger.Info("UpdateSPRecordsByFailureModeAnd8DCorrectiveAction start");
 			foreach (var item in spRecords)
 			{
-				if (item.RID == "21-3828")
+				if (item.RID == "21-0237")
 					Logger.Info("serond key");
 				// foreach only return reference to the value for the reference type
-				if (!string.IsNullOrWhiteSpace(item.InterimCorrectiveActionDate)
-				&& !string.IsNullOrWhiteSpace(item.CleanDateFinalCorrectiveActionInPlace)
-				&& !string.IsNullOrWhiteSpace(item.FirstSNAndOrDateCode))
+				if (isInvalidStringContent(item.InterimCorrectiveActionDate)
+				|| isInvalidStringContent(item.CleanDateFinalCorrectiveActionInPlace)
+				|| isInvalidStringContent(item.FirstSNAndOrDateCode))
 				{
 					continue;
 				}
-				if (string.IsNullOrWhiteSpace(item.FailureMode) && string.IsNullOrWhiteSpace(item.CorrectiveAction8D))
+				if (!isInvalidStringContent(item.FailureMode) && isInvalidStringContent(item.CorrectiveAction8D))
 				{
 					Logger.Info($"Record Rid: {item.RID} have invalid Compoisite key, skip");
 					continue;
@@ -324,19 +345,19 @@ namespace SpreadSheetTool.Models
 				}
 				bool isModify = false;
 				var compositeRecord = composite2spRecord[compositeKey];
-				if (!string.IsNullOrWhiteSpace(compositeRecord.InterimCorrectiveActionDate)
+				if (!isInvalidStringContent(compositeRecord.InterimCorrectiveActionDate)
 					&& record.InterimCorrectiveActionDate != compositeRecord.InterimCorrectiveActionDate)
 				{ 
 					record.InterimCorrectiveActionDate = compositeRecord.InterimCorrectiveActionDate;
 					isModify = true;
 				}
-				if (!string.IsNullOrWhiteSpace(compositeRecord.CleanDateFinalCorrectiveActionInPlace)
+				if (!isInvalidStringContent(compositeRecord.CleanDateFinalCorrectiveActionInPlace)
 					&& record.CleanDateFinalCorrectiveActionInPlace != compositeRecord.CleanDateFinalCorrectiveActionInPlace)
 				{ 
 					record.CleanDateFinalCorrectiveActionInPlace = compositeRecord.CleanDateFinalCorrectiveActionInPlace;
 					isModify = true;
 				}
-				if (!string.IsNullOrWhiteSpace(compositeRecord.FirstSNAndOrDateCode)
+				if (!isInvalidStringContent(compositeRecord.FirstSNAndOrDateCode)
 					&& record.FirstSNAndOrDateCode != compositeRecord.FirstSNAndOrDateCode)
 				{ 
 					record.FirstSNAndOrDateCode = compositeRecord.FirstSNAndOrDateCode;
