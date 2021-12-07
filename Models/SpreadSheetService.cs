@@ -183,15 +183,22 @@ namespace SpreadSheetTool.Models
 		}
 		private Dictionary<string, SharedPointSSCoreRecord>  GetFailureModeProgressUpdateMaps(List<SharedPointSSRecord> spRecords)
 		{
+			/*
+			 * Notice, some FailureMode has same meaning, but one is upper, the other is letter, notice.
+			 */
 			Dictionary<string, SharedPointSSCoreRecord> failureMode2spRecord =
 				new Dictionary<string, SharedPointSSCoreRecord>();
 			foreach (var record in spRecords)
 			{
+				string to = "Part Exceeds Warranty Claim Life - C26 depleted";
+				if (record.FailureMode == to)
+					Logger.Info($"Record special Faulure Mode ProblemClassification: {record.ProblemClassification}");
 				if (string.IsNullOrWhiteSpace(record.FailureMode))
 					continue;
-				if (!failureMode2spRecord.ContainsKey(record.FailureMode))
+				string failureModeUpper = record.FailureMode.ToUpper();
+				if (!failureMode2spRecord.ContainsKey(failureModeUpper))
 				{
-					failureMode2spRecord[record.FailureMode] = new SharedPointSSCoreRecord
+					failureMode2spRecord[failureModeUpper] = new SharedPointSSCoreRecord
 					{
 						ProblemClassification = record.ProblemClassification,
 						InterimCorrectiveActionDate = record.InterimCorrectiveActionDate,
@@ -203,22 +210,18 @@ namespace SpreadSheetTool.Models
 					continue;
 				}
 				// existing a record, so merge them if one is null or empty and the other is not
-				var matchRecord = failureMode2spRecord[record.FailureMode];
+				var matchRecord = failureMode2spRecord[failureModeUpper];
 				Logger.Info($"record.ProblemClassification: {record.RID}, {record.ProblemClassification}");
-				if (!string.IsNullOrWhiteSpace(record.ProblemClassification) 
-					&& record.ProblemClassification != "-")
+				if (!isValidString(matchRecord.ProblemClassification) && isValidString(record.ProblemClassification))
 					matchRecord.ProblemClassification = record.ProblemClassification;
-				if (string.IsNullOrWhiteSpace(matchRecord.InterimCorrectiveActionDate)
-					&& !string.IsNullOrWhiteSpace(record.InterimCorrectiveActionDate))
+				if (!isValidString(matchRecord.InterimCorrectiveActionDate) && isValidString(record.InterimCorrectiveActionDate))
 					matchRecord.InterimCorrectiveActionDate = record.InterimCorrectiveActionDate;
-				if (string.IsNullOrWhiteSpace(matchRecord.CleanDateFinalCorrectiveActionInPlace)
-					&& !string.IsNullOrWhiteSpace(record.CleanDateFinalCorrectiveActionInPlace))
+				if (!isValidString(matchRecord.CleanDateFinalCorrectiveActionInPlace) 
+					&& isValidString(record.CleanDateFinalCorrectiveActionInPlace))
 					matchRecord.CleanDateFinalCorrectiveActionInPlace = record.CleanDateFinalCorrectiveActionInPlace;
-				if (string.IsNullOrWhiteSpace(matchRecord.FirstSNAndOrDateCode)
-					&& !string.IsNullOrWhiteSpace(record.FirstSNAndOrDateCode))
+				if (!isValidString(matchRecord.FirstSNAndOrDateCode) && isValidString(record.FirstSNAndOrDateCode))
 					matchRecord.FirstSNAndOrDateCode = record.FirstSNAndOrDateCode;
-				if (string.IsNullOrWhiteSpace(matchRecord.CorrectiveAction8D)
-					&& !string.IsNullOrWhiteSpace(record.CorrectiveAction8D))
+				if (!isValidString(matchRecord.CorrectiveAction8D) && isValidString(record.CorrectiveAction8D))
 					matchRecord.CorrectiveAction8D = record.CorrectiveAction8D;
 			}
 			return failureMode2spRecord;
@@ -279,36 +282,47 @@ namespace SpreadSheetTool.Models
 			Dictionary<string, SharedPointSSCoreRecord> failureMode2spRecord
 			)
 		{
+			/*
+			 * Using the failureMode2spRecord to update the problem classification field
+			 */
 			Logger.Info("UpdateSPRecordsByFailureMode start");
 			foreach (var item in spRecords)
 			{
-				if (item.RID == "21-0237")
+				if (item.RID == "21-0844")
 					Logger.Info("insert here key");
 				Logger.Info($"UpdateSPRecordByFailureMode: {item}");
-				if (!string.IsNullOrWhiteSpace(item.ProblemClassification))
+				if (isValidString(item.ProblemClassification))
 				{
+					Logger.Info($"Item {item.RID} already have valid problem classification, skip");
 					continue;
 				}
-				SharedPointSSRecord record =
-					toUpdate.GetValueOrDefault(item.RID, new SharedPointSSRecord(item));
-				if (string.IsNullOrWhiteSpace(record.FailureMode) || !failureMode2spRecord.ContainsKey(record.FailureMode))
+				if (!isValidString(item.FailureMode))
 				{
-					Logger.Info($"Record RID: {record.RID}; Failure Mode: {record.FailureMode} cant find match record in failureMode2spRecord");
+					Logger.Info($"Item {item.RID} have invalid failure mode, skip");
 					continue;
 				}
-				if (string.IsNullOrWhiteSpace(failureMode2spRecord[record.FailureMode].ProblemClassification))
+				string failureModeUpper = item.FailureMode.ToUpper();
+				SharedPointSSRecord record = toUpdate.GetValueOrDefault(item.RID, new SharedPointSSRecord(item));
+				if (!failureMode2spRecord.ContainsKey(failureModeUpper))
 				{
-					Logger.Info($"Record RID: {record.RID}; Failure Mode: {record.FailureMode} match record don't have valid ProblemClassification");
+					Logger.Info($"Item {record.RID} cant find match record in failureMode2spRecord");
+					continue;
+				}
+				if (!isValidString(failureMode2spRecord[failureModeUpper].ProblemClassification))
+				{
+					Logger.Info($"Item {record.RID} match record don't have valid ProblemClassification");
 					continue;
 				}
 				record.ProblemClassification = 
-					failureMode2spRecord[record.FailureMode].ProblemClassification;
+					failureMode2spRecord[failureModeUpper].ProblemClassification;
 				toUpdate[item.RID] = record;
 			}
 			Logger.Info("UpdateSPRecordsByFailureMode end");
 		}
-		private bool isInvalidStringContent(string str)
+		private bool isValidString(string str)
 		{
+			if (string.IsNullOrEmpty(str))
+				return false;
 			if (string.IsNullOrWhiteSpace(str))
 				return false;
 			return str != "-";
@@ -318,19 +332,27 @@ namespace SpreadSheetTool.Models
 			Dictionary<string, SharedPointSSRecord> toUpdate,
 			Dictionary<string, SharedPointSSCoreRecord> composite2spRecord)
 		{
+			/*
+			 * Update the spreadSheet record according the composite2sprecords
+			 * The main logic is
+			 * 1. whether the spreadsheet record already valid value, if not, go on 
+			 * 2. whether the spreadsheet have valid composite key, if has, go on
+			 * 3. check whether the composite2sprecords has the matching record, if has, go on
+			 * 4. check whether the corresponding field has the valid value, if has, assign
+			 */
 			Logger.Info("UpdateSPRecordsByFailureModeAnd8DCorrectiveAction start");
 			foreach (var item in spRecords)
 			{
-				if (item.RID == "21-0237")
+				if (item.RID == "21-0735" || item.RID == "21-0856")
 					Logger.Info("serond key");
 				// foreach only return reference to the value for the reference type
-				if (isInvalidStringContent(item.InterimCorrectiveActionDate)
-				|| isInvalidStringContent(item.CleanDateFinalCorrectiveActionInPlace)
-				|| isInvalidStringContent(item.FirstSNAndOrDateCode))
+				if (isValidString(item.InterimCorrectiveActionDate)
+				&& isValidString(item.CleanDateFinalCorrectiveActionInPlace)
+				&& isValidString(item.FirstSNAndOrDateCode))
 				{
 					continue;
 				}
-				if (!isInvalidStringContent(item.FailureMode) && isInvalidStringContent(item.CorrectiveAction8D))
+				if (!isValidString(item.FailureMode) && !isValidString(item.CorrectiveAction8D))
 				{
 					Logger.Info($"Record Rid: {item.RID} have invalid Compoisite key, skip");
 					continue;
@@ -345,19 +367,19 @@ namespace SpreadSheetTool.Models
 				}
 				bool isModify = false;
 				var compositeRecord = composite2spRecord[compositeKey];
-				if (!isInvalidStringContent(compositeRecord.InterimCorrectiveActionDate)
+				if (isValidString(compositeRecord.InterimCorrectiveActionDate)
 					&& record.InterimCorrectiveActionDate != compositeRecord.InterimCorrectiveActionDate)
 				{ 
 					record.InterimCorrectiveActionDate = compositeRecord.InterimCorrectiveActionDate;
 					isModify = true;
 				}
-				if (!isInvalidStringContent(compositeRecord.CleanDateFinalCorrectiveActionInPlace)
+				if (isValidString(compositeRecord.CleanDateFinalCorrectiveActionInPlace)
 					&& record.CleanDateFinalCorrectiveActionInPlace != compositeRecord.CleanDateFinalCorrectiveActionInPlace)
 				{ 
 					record.CleanDateFinalCorrectiveActionInPlace = compositeRecord.CleanDateFinalCorrectiveActionInPlace;
 					isModify = true;
 				}
-				if (!isInvalidStringContent(compositeRecord.FirstSNAndOrDateCode)
+				if (isValidString(compositeRecord.FirstSNAndOrDateCode)
 					&& record.FirstSNAndOrDateCode != compositeRecord.FirstSNAndOrDateCode)
 				{ 
 					record.FirstSNAndOrDateCode = compositeRecord.FirstSNAndOrDateCode;
