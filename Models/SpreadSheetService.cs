@@ -94,6 +94,7 @@ namespace SpreadSheetTool.Models
 			// 2. update the sheet and log the change
 			spManager.InsertOrUpdateSource(year, toInsert.Select(item => item.Value).ToList(), toUpdate);
 		}
+		// check all rows in FTP files whether already in the SP files, if not, add to the toInsert dictionary
 		private Dictionary<string, SharedPointSSRecord> GetInsertSPRecordsFromFTP(List<FTPSSRecord> ftpRecords,
 			Dictionary<string, SharedPointSSRecord> rid2SpRecords)
 		{
@@ -114,6 +115,17 @@ namespace SpreadSheetTool.Models
 			}
 			return toInsert;
 		}
+		bool sourceNotNoneAndDestIsNone(string source, string dest)
+		{
+			return !string.IsNullOrWhiteSpace(source) && string.IsNullOrWhiteSpace(dest);
+		}
+		bool bothNotNoneAndNotEqual(string source, string dest)
+		{
+			if (string.IsNullOrWhiteSpace(source) || string.IsNullOrWhiteSpace(dest))
+				return false;
+			return source != dest;
+		}
+		// check whether the existing rows in SP files need update according to the FTP file rows
 		private Dictionary<string, SharedPointSSRecord> GetUpdateSPRecordsByFTP(
 			List<FTPSSRecord> ftpRecords,
 			Dictionary<string, SharedPointSSRecord> rid2spRecord
@@ -126,30 +138,30 @@ namespace SpreadSheetTool.Models
 				{
 					continue;
 				}
-				if (ftpRecord.RID == "21-0237")
+				if (ftpRecord.RID == "21-3294")
 					Logger.Info("break here");
 				var spRecord = new SharedPointSSRecord(rid2spRecord[ftpRecord.RID]);
 				bool isModify = false;
-				if (string.IsNullOrWhiteSpace(spRecord.DateReced) 
-					&& !string.IsNullOrWhiteSpace(ftpRecord.DateCTSReceived))
+				if(sourceNotNoneAndDestIsNone(ftpRecord.DateCTSReceived, spRecord.DateReced) 
+					|| bothNotNoneAndNotEqual(ftpRecord.DateCTSReceived, spRecord.DateReced))
 				{
 					spRecord.DateReced = ftpRecord.DateCTSReceived;
 					isModify = true;
 				}
-				if (string.IsNullOrWhiteSpace(spRecord.FailureMode) 
-					&& !string.IsNullOrWhiteSpace(ftpRecord.FailMode))
+				if (sourceNotNoneAndDestIsNone(ftpRecord.FailMode, spRecord.FailureMode)
+					|| bothNotNoneAndNotEqual(ftpRecord.FailMode, spRecord.FailureMode))
 				{
 					spRecord.FailureMode = ftpRecord.FailMode;
 					isModify = true;
 				}
-				if (string.IsNullOrWhiteSpace(spRecord.DateRootCauseIdentified) 
-					&& !string.IsNullOrWhiteSpace(ftpRecord.DateRootCauseReport))
+				if (sourceNotNoneAndDestIsNone(ftpRecord.DateRootCauseReport, spRecord.DateRootCauseIdentified)
+					|| bothNotNoneAndNotEqual(ftpRecord.DateRootCauseReport, spRecord.DateRootCauseIdentified))
 				{
 					spRecord.DateRootCauseIdentified = ftpRecord.DateRootCauseReport;
 					isModify = true;
 				}
-				if (string.IsNullOrWhiteSpace(spRecord.CorrectiveAction8D) 
-					&& !string.IsNullOrWhiteSpace(ftpRecord.ProjectCode))
+				if (sourceNotNoneAndDestIsNone(ftpRecord.ProjectCode, spRecord.CorrectiveAction8D)
+					|| bothNotNoneAndNotEqual(ftpRecord.ProjectCode, spRecord.CorrectiveAction8D))
 				{
 					spRecord.CorrectiveAction8D = ftpRecord.ProjectCode;
 					isModify = true;
@@ -244,7 +256,7 @@ namespace SpreadSheetTool.Models
 						CleanDateFinalCorrectiveActionInPlace = record.CleanDateFinalCorrectiveActionInPlace,
 						FirstSNAndOrDateCode = record.FirstSNAndOrDateCode,
 						FailureMode = record.FailureMode,
-						CorrectiveAction8D = record.CorrectiveAction8D
+						CorrectiveAction8D = record.CorrectiveAction8D 
 					};
 					continue;
 				}
@@ -313,8 +325,7 @@ namespace SpreadSheetTool.Models
 					Logger.Info($"Item {record.RID} match record don't have valid ProblemClassification");
 					continue;
 				}
-				record.ProblemClassification = 
-					failureMode2spRecord[failureModeUpper].ProblemClassification;
+				record.ProblemClassification = failureMode2spRecord[failureModeUpper].ProblemClassification;
 				toUpdate[item.RID] = record;
 			}
 			Logger.Info("UpdateSPRecordsByFailureMode end");
