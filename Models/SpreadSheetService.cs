@@ -68,9 +68,7 @@ namespace SpreadSheetTool.Models
 				foreach(var item in spRecords)
 				{
 					if (rid2SpRecords.ContainsKey(item.RID))
-					{ 
-						Logger.Info($"the repeated record rid: {item.RID}");
-					}
+						Logger.Warn($"repeated record rid: {item.RID}");
 					rid2SpRecords[item.RID] = item;
 				}
 				//rid2SpRecords = spRecords.ToDictionary(x => x.RID, x => x);
@@ -135,11 +133,8 @@ namespace SpreadSheetTool.Models
 			foreach (var ftpRecord in ftpRecords)
 			{
 				if (!rid2spRecord.ContainsKey(ftpRecord.RID))
-				{
 					continue;
-				}
-				if (ftpRecord.RID == "21-3294")
-					Logger.Info("break here");
+
 				var spRecord = new SharedPointSSRecord(rid2spRecord[ftpRecord.RID]);
 				bool isModify = false;
 				if(sourceNotNoneAndDestIsNone(ftpRecord.DateCTSReceived, spRecord.DateReced) 
@@ -185,26 +180,20 @@ namespace SpreadSheetTool.Models
 				= GetCompositeKeyProgressUpdateMaps(spRecords);
 			// using `Progress object` to update the records in `SPSheet, but not the toInsert records`
 			UpdateSPRecordsByFailureMode(spRecords, toUpdate, failureMode2spRecord);
-			if (toUpdate.ContainsKey("21-0237"))
-				Logger.Info("insert here3");
 
 			UpdateSPRecordsByFailureModeAnd8DCorrectiveAction(spRecords, toUpdate, composite2spRecord);
-			// when insert ,need check the matching record whether is in toUpdate
-			if (toUpdate.ContainsKey("21-3828"))
-				Logger.Info("insert here4");
 		}
 		private Dictionary<string, SharedPointSSCoreRecord>  GetFailureModeProgressUpdateMaps(List<SharedPointSSRecord> spRecords)
 		{
 			/*
-			 * Notice, some FailureMode has same meaning, but one is upper, the other is letter, notice.
+			 * 1. Use .Upper() to avoid to generate two records with same meanings
+			 * 2. Current just use the record in SpreadSheet to update result, so actually the result is from the last one sp record
+			 * 3. Current we don't consider the toUpdate, but maybe need to consider it later
 			 */
 			Dictionary<string, SharedPointSSCoreRecord> failureMode2spRecord =
 				new Dictionary<string, SharedPointSSCoreRecord>();
 			foreach (var record in spRecords)
 			{
-				string to = "Part Exceeds Warranty Claim Life - C26 depleted";
-				if (record.FailureMode == to)
-					Logger.Info($"Record special Faulure Mode ProblemClassification: {record.ProblemClassification}");
 				if (string.IsNullOrWhiteSpace(record.FailureMode))
 					continue;
 				string failureModeUpper = record.FailureMode.ToUpper();
@@ -300,9 +289,6 @@ namespace SpreadSheetTool.Models
 			Logger.Info("UpdateSPRecordsByFailureMode start");
 			foreach (var item in spRecords)
 			{
-				if (item.RID == "21-0844")
-					Logger.Info("insert here key");
-				Logger.Info($"UpdateSPRecordByFailureMode: {item}");
 				if (isValidString(item.ProblemClassification))
 				{
 					Logger.Info($"Item {item.RID} already have valid problem classification, skip");
@@ -354,8 +340,6 @@ namespace SpreadSheetTool.Models
 			Logger.Info("UpdateSPRecordsByFailureModeAnd8DCorrectiveAction start");
 			foreach (var item in spRecords)
 			{
-				if (item.RID == "21-0735" || item.RID == "21-0856")
-					Logger.Info("serond key");
 				// foreach only return reference to the value for the reference type
 				if (isValidString(item.InterimCorrectiveActionDate)
 				&& isValidString(item.CleanDateFinalCorrectiveActionInPlace)
