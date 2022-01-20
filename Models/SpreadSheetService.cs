@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -23,16 +24,6 @@ namespace SpreadSheetTool.Models
 		{
 			return ftpManager.GetItems();
 		}
-
-		private string GetCurrentYear()
-		{
-			return DateTime.Now.Year.ToString();
-		}
-		private string GetLastYear()
-		{
-			var current = DateTime.Now;
-			return current.AddYears(-1).Year.ToString();
-		}
 		private List<FTPSSRecord> GetFTPRecordsByYear(string year, List<FTPSSRecord>  ftpRecords)
 		{
 			// like 21 to 2021, 20 to 2020
@@ -42,13 +33,13 @@ namespace SpreadSheetTool.Models
 		public void Run()
 		{
 			// get current year and last year, like 2021 and 2020
-			string currentYear = GetCurrentYear();
-			string lastYear = GetLastYear();
 			var ftpRecords = ftpManager.GetItems();
-			var currentYearFtpRecords = GetFTPRecordsByYear(currentYear, ftpRecords);
-			var lastYearFtpRecords = GetFTPRecordsByYear(lastYear, ftpRecords);
-			InsertOrUpdateSUBLogsByYears(currentYear, currentYearFtpRecords);
-			//InsertOrUpdateSUBLogsByYears(lastYear, lastYearFtpRecords);
+			string[] years = ConfigurationManager.AppSettings["target_years"].Split(',').Select(s => s.Trim()).ToArray();
+			foreach (var year in years)
+            {
+				var currentFtpRecords = GetFTPRecordsByYear(year, ftpRecords);
+				InsertOrUpdateSUBLogsByYears(year, currentFtpRecords);
+			}
 		}
 		private void InsertOrUpdateSUBLogsByYears(string year, List<FTPSSRecord> ftpRecords)
 		{
